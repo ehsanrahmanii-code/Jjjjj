@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">TITAN Pro</string>
+    <string name="boot_engine">راه‌اندازی TITAN Pro کامل…\nاولین اجرا تا ۲ دقیقه طول می‌کشد.\nصفحه را نبندید.</string>
+    <string name="connecting">در حال باز کردن داشبورد…</string>
+    <string name="engine_offline">موتور هنوز آماده نیست.\nپیام خطا را بخوانید و Retry بزنید.</string>
+    <string name="engine_result">وضعیت: %1$s</string>
+    <string name="engine_fail">خطا: %1$s</string>
+    <string name="retry">تلاش مجدد</string>
+    <string name="guide">راهنما</string>
+    <string name="guide_full">TITAN Pro کامل\n\n• موتور V62 داخل اپ است\n• اینترنت برای Binance لازم است\n• داده در پوشه JJJ ذخیره می‌شود\n• اگر قفل شد اپ را کامل ببندید و دوباره باز کنید</string>
+</resources>

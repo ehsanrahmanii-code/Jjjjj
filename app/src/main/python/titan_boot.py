@@ -1,11 +1,10 @@
-"""Bootstrap full TITAN V62 engine inside Chaquopy APK — Android-safe."""
+"""Bootstrap full TITAN V62 inside Chaquopy — import works on device."""
 from __future__ import annotations
 
 import os
 import sys
 import threading
 import traceback
-import types
 
 _started = False
 _lock = threading.Lock()
@@ -53,51 +52,38 @@ def _prepare_android_home() -> str:
     return home
 
 
-def _load_engine_module():
-    """Load titan_engine with Android storage lock patched out."""
-    import importlib.util
-    from pathlib import Path
+def _import_engine():
+    """Import titan_engine the Chaquopy way; hide unwritable shared storage so APP_HOME falls back to TITAN_HOME."""
+    import pathlib
 
-    # Locate source next to this file
-    here = Path(__file__).resolve().parent
-    src_path = here / "titan_engine.py"
-    if not src_path.exists():
-        raise FileNotFoundError("titan_engine.py not found")
+    hide = {
+        "/storage/emulated/0",
+        "/sdcard",
+        "/storage/self/primary",
+    }
+    real_exists = pathlib.Path.exists
+    real_is_dir = pathlib.Path.is_dir
 
-    text = src_path.read_text(encoding="utf-8", errors="replace")
+    def _exists(self):
+        s = str(self).rstrip("/")
+        if s in hide:
+            return False
+        return real_exists(self)
 
-    # Disable hard-fail when shared storage exists but is not writable
-    text = text.replace(
-        "if android_storage_present:\n        raise RuntimeError(",
-        "if False and android_storage_present:\n        raise RuntimeError(",
-        1,
-    )
-    # Prefer TITAN_HOME when set (APK boot always sets it)
-    if "def _select_app_home()" in text and "TITAN_HOME" in text:
-        inject = '''
-def _select_app_home() -> Path:
-    env_home = str(os.environ.get("TITAN_HOME") or os.environ.get("TITAN_APP_HOME") or "").strip()
-    if env_home:
-        try:
-            kroot = Path(env_home)
-            if kroot.name != TITAN_FOLDER_NAME:
-                kroot = kroot / TITAN_FOLDER_NAME
-            probe = kroot / ".titan_jjj_probe"
-            kroot.mkdir(parents=True, exist_ok=True)
-            probe.write_text("ok", encoding="utf-8")
-            probe.unlink(missing_ok=True)
-            return kroot
-        except OSError:
-            pass
-'''
-        # Only inject if original doesn't already prefer env first at top of function
-        # Safer minimal patch already applied above with `if False and android_storage_present`
+    def _is_dir(self):
+        s = str(self).rstrip("/")
+        if s in hide:
+            return False
+        return real_is_dir(self)
 
-    spec = importlib.util.spec_from_loader("titan_engine", loader=None)
-    mod = importlib.util.module_from_spec(spec)  # type: ignore
-    sys.modules["titan_engine"] = mod
-    exec(compile(text, str(src_path), "exec"), mod.__dict__)
-    return mod
+    pathlib.Path.exists = _exists  # type: ignore
+    pathlib.Path.is_dir = _is_dir  # type: ignore
+    try:
+        import titan_engine as te
+        return te
+    finally:
+        pathlib.Path.exists = real_exists  # type: ignore
+        pathlib.Path.is_dir = real_is_dir  # type: ignore
 
 
 def start_server() -> str:
@@ -115,18 +101,21 @@ def start_server() -> str:
             _status["message"] = f"home:{home}"
 
             _status["phase"] = "import"
-            _status["message"] = "loading full TITAN V62 (numpy/pandas)..."
-            te = _load_engine_module()
+            _status["message"] = "import titan_engine (numpy/pandas)…"
+            te = _import_engine()
 
             _status["phase"] = "serve"
-            _status["message"] = "binding 0.0.0.0:8080 full dashboard"
+            _status["message"] = "dashboard on 0.0.0.0:8080"
             if hasattr(te, "run_titan"):
                 te.run_titan(open_browser=False)
             elif hasattr(te, "app"):
-                from waitress import serve
-                serve(te.app, host="0.0.0.0", port=8080, threads=6, channel_timeout=120)
+                try:
+                    from waitress import serve
+                    serve(te.app, host="0.0.0.0", port=8080, threads=6, channel_timeout=120)
+                except Exception:
+                    te.app.run(host="0.0.0.0", port=8080, threaded=True, use_reloader=False)
             else:
-                raise RuntimeError("no run_titan in engine")
+                raise RuntimeError("titan_engine has no run_titan/app")
             _status["ok"] = True
             _status["phase"] = "stopped"
         except Exception as exc:
@@ -142,5 +131,5 @@ def start_server() -> str:
 def get_status_text() -> str:
     s = status()
     if s.get("error"):
-        return "error: " + str(s["error"])[:400]
+        return "error: " + str(s["error"])[:500]
     return f"{s.get('phase')}: {s.get('message')}"

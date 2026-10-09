@@ -1,0 +1,55 @@
+plugins {
+    id 'com.android.application'
+    id 'org.jetbrains.kotlin.android'
+    id 'com.chaquo.python'
+}
+
+android {
+    namespace 'com.titan.jjj'
+    compileSdk 34
+
+    defaultConfig {
+        applicationId "com.titan.jjj"
+        minSdk 26
+        targetSdk 34
+        versionCode 100
+        versionName "1.0.0-full"
+
+        ndk {
+            abiFilters "arm64-v8a"
+        }
+
+        python {
+            version "3.12"
+            pip {
+                install "flask"
+                install "waitress"
+                install "requests"
+                install "numpy"
+                install "pandas"
+                install "urllib3"
+            }
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+    kotlinOptions {
+        jvmTarget = '17'
+    }
+    packaging {
+        jniLibs {
+            useLegacyPackaging true
+        }
+    }
+}
+
+dependencies {
+    implementation 'androidx.core:core-ktx:1.12.0'
+    implementation 'androidx.appcompat:appcompat:1.6.1'
+    implementation 'com.google.android.material:material:1.11.0'
+    implementation 'androidx.constraintlayout:constraintlayout:2.1.4'
+    implementation 'androidx.swiperefreshlayout:swiperefreshlayout:1.1.0'
+}

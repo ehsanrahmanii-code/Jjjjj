@@ -1,0 +1,52 @@
+name: Build TITAN Full APK
+
+on:
+  push:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Prepare engine
+        run: |
+          bash scripts/decode_engine.sh
+          ls -lh app/src/main/python/
+          test $(wc -c < app/src/main/python/titan_engine.py) -gt 500000
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - run: |
+          python3 -m pip install --upgrade pip setuptools wheel
+          python3 -m pip install six || true
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.7"
+
+      - run: echo "sdk.dir=${ANDROID_HOME:-$ANDROID_SDK_ROOT}" > local.properties
+
+      - name: Build APK
+        run: |
+          set -euo pipefail
+          gradle wrapper --gradle-version 8.7
+          chmod +x gradlew
+          ./gradlew assembleDebug --stacktrace --no-daemon
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: TITAN-Full-APK
+          path: app/build/outputs/apk/**/*.apk
+          if-no-files-found: error
